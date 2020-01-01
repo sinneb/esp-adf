@@ -51,4 +51,13 @@ set(COMPONENT_SRCS
 )
 endif()
 
+if (CONFIG_ESP_AUDIO_KIT)
+message(STATUS "Current board name is " CONFIG_ESP_AUDIO_KIT)
+list(APPEND COMPONENT_ADD_INCLUDEDIRS ./esp32_audio_kit)
+set(COMPONENT_SRCS
+./esp32_audio_kit/board.c
+./esp32_audio_kit/board_pins_config.c
+)
+endif()
+
 register_component()
