@@ -61,8 +61,11 @@ audio_hal_handle_t audio_hal_init(audio_hal_codec_config_t *audio_hal_conf, audi
             return NULL;
         }
     }
+    printf("hier\n");
     ret |= audio_hal->audio_codec_config_iface(audio_hal_conf->codec_mode, &audio_hal_conf->i2s_iface);
+    printf("tussen\n");
     ret |= audio_hal->audio_codec_set_volume(AUDIO_HAL_VOL_DEFAULT);
+    printf("daar\n");
     audio_hal->handle = audio_hal;
     audio_hal_func->handle = audio_hal;
     mutex_unlock(audio_hal->audio_hal_lock);
@@ -87,7 +90,7 @@ esp_err_t audio_hal_ctrl_codec(audio_hal_handle_t audio_hal, audio_hal_codec_mod
     esp_err_t ret;
     AUDIO_HAL_CHECK_NULL(audio_hal, "audio_hal handle is null", -1);
     mutex_lock(audio_hal->audio_hal_lock);
-    ESP_LOGI(TAG, "Codec mode is %d, Ctrl:%d", mode, audio_hal_state);
+    ESP_LOGW(TAG, "Codec mode is %d, Ctrl:%d", mode, audio_hal_state);
     ret = audio_hal->audio_codec_ctrl(mode, audio_hal_state);
     mutex_unlock(audio_hal->audio_hal_lock);
     return ret;
