@@ -4,6 +4,8 @@
 
 Espressif Systems Audio Development Framework (ESP-ADF) is the official audio development framework for the [ESP32](https://espressif.com/en/products/hardware/esp32/overview) chip.
 
+--> This repository supports the AC101 codec as found on Ai Thinkers' A1S Audio Development Kit. "Player" functionality tested and working, recorder functionality untested. Issue a "idf.py menuconfig" and select the A1S board under the "Audio HAL" menu item.
+
 ## Overview
 
 ESP-ADF supports development of audio applications for the Espressif Systems [ESP32](https://espressif.com/en/products/hardware/esp32/overview) chip in the most comprehensive way. With ESP-ADF, you can easily add features, develop audio applications from simple to complex:
