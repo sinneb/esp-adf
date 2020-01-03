@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 
-/* ES8388 address */
+/* AC101 address */
 #define AC101_ADDR 0x1a  /*!< 0x22:CE=1;0x20:CE=0*/
 
 /* ES8388 register */
@@ -164,7 +164,7 @@ typedef enum{
 	SIMPLE_RATE_48000	= 0x8000,
 	SIMPLE_RATE_96000	= 0x9000,
 	SIMPLE_RATE_192000	= 0xa000,
-}ac_adda_fs_i2s1_t;
+} ac101_adda_fs_i2s1_t;
 
 typedef enum{
 	BCLK_DIV_1		= 0x0,
@@ -182,7 +182,7 @@ typedef enum{
 	BCLK_DIV_128	= 0xc,
 	BCLK_DIV_192	= 0xd,
 
-}ac_i2s1_bclk_div_t;
+} ac101_i2s1_bclk_div_t;
 
 typedef enum{
 	LRCK_DIV_16		=0x0,
@@ -190,36 +190,36 @@ typedef enum{
 	LRCK_DIV_64		=0x2,
 	LRCK_DIV_128	=0x3,
 	LRCK_DIV_256	=0x4,
-}ac_i2s1_lrck_div_t;
+} ac101_i2s1_lrck_div_t;
 
 typedef enum {
     BIT_LENGTH_8_BITS = 0x00,
     BIT_LENGTH_16_BITS = 0x01,
     BIT_LENGTH_20_BITS = 0x02,
     BIT_LENGTH_24_BITS = 0x03,
-} ac_bits_length_t;
+} ac101_bits_length_t;
 
 typedef enum {
     AC_MODE_MIN = -1,
     AC_MODE_SLAVE = 0x00,
     AC_MODE_MASTER = 0x01,
     AC_MODE_MAX,
-} ac_mode_sm_t;
+} ac101_mode_sm_t;
 
 typedef enum {
-    AC_MODULE_MIN = -1,
-    AC_MODULE_ADC = 0x01,
-    AC_MODULE_DAC = 0x02,
-    AC_MODULE_ADC_DAC = 0x03,
-    AC_MODULE_LINE = 0x04,
-    AC_MODULE_MAX
-} ac_module_t;
+    AC101_MODULE_MIN = -1,
+    AC101_MODULE_ADC = 0x01,
+    AC101_MODULE_DAC = 0x02,
+    AC101_MODULE_ADC_DAC = 0x03,
+    AC101_MODULE_LINE = 0x04,
+    AC101_MODULE_MAX
+} ac101_module_t;
 
 typedef enum{
 	SRC_MIC1	= 1,
 	SRC_MIC2	= 2,
 	SRC_LINEIN	= 3,
-}ac_output_mixer_source_t;
+} ac101_output_mixer_source_t;
 
 typedef enum {
     GAIN_N45DB = 0,
@@ -230,225 +230,40 @@ typedef enum {
     GAIN_30DB  = 5,
     GAIN_45DB  = 6,
     GAIN_60DB  = 7,
-} ac_output_mixer_gain_t;
+} ac101_output_mixer_gain_t;
 
 /**
  * @brief Configure AC101 clock
  */
 typedef struct {
-	ac_i2s1_bclk_div_t bclk_div;    /*!< bits clock divide */
-	ac_i2s1_lrck_div_t lclk_div;    /*!< WS clock divide */
-} ac_i2s_clock_t;
+	ac101_i2s1_bclk_div_t bclk_div;    /*!< bits clock divide */
+	ac101_i2s1_lrck_div_t lclk_div;    /*!< WS clock divide */
+} ac101_i2s_clock_t;
 
+static int ac101_set_adc_dac_volume(int mode, int volume, int dot);
 static esp_err_t i2c_example_master_read_slave(uint8_t DevAddr, uint8_t reg,uint8_t* data_rd, size_t size);
-/**
- * @brief Initialize ES8388 codec chip
- *
- * @param cfg configuration of ES8388
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
 esp_err_t ac101_init(audio_hal_codec_config_t *cfg);
-
-/**
- * @brief Deinitialize ES8388 codec chip
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
 esp_err_t ac101_deinit(void);
-
-/**
- * @brief Configure ES8388 I2S format
- *
- * @param mod:  set ADC or DAC or both
- * @param cfg:   ES8388 I2S format
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
-esp_err_t ac101_config_fmt(es_module_t mod, es_i2s_fmt_t cfg);
-
-/**
- * @brief Configure I2s clock in MSATER mode
- *
- * @param cfg:  set bits clock and WS clock
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
-esp_err_t ac101_i2s_config_clock(es_i2s_clock_t cfg);
-
-/**
- * @brief Configure ES8388 data sample bits
- *
- * @param mode:  set ADC or DAC or both
- * @param bit_per_sample:  bit number of per sample
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
-esp_err_t ac101_set_bits_per_sample(es_module_t mode, es_bits_length_t bit_per_sample);
-
-/**
- * @brief  Start ES8388 codec chip
- *
- * @param mode:  set ADC or DAC or both
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
-esp_err_t ac101_start(es_module_t mode);
-
-/**
- * @brief  Stop ES8388 codec chip
- *
- * @param mode:  set ADC or DAC or both
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
-esp_err_t ac101_stop(es_module_t mode);
-
-/**
- * @brief  Set voice volume
- *
- * @param volume:  voice volume (0~100)
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
+esp_err_t ac101_config_fmt(ac101_module_t mod, es_i2s_fmt_t cfg);
+esp_err_t ac101_i2s_config_clock(ac101_i2s_clock_t cfg);
+esp_err_t ac101_set_bits_per_sample(ac101_module_t mode, es_bits_length_t bit_per_sample);
+esp_err_t ac101_start(ac101_module_t mode);
+esp_err_t ac101_stop(ac101_module_t mode);
 esp_err_t ac101_set_voice_volume(int volume);
-
-/**
- * @brief Get voice volume
- *
- * @param[out] *volume:  voice volume (0~100)
- *
- * @return
- *     - ESP_OK
- *     - ESP_FAIL
- */
 esp_err_t ac101_get_voice_volume(int *volume);
-
-/**
- * @brief Configure ES8388 DAC mute or not. Basically you can use this function to mute the output or unmute
- *
- * @param enable enable(1) or disable(0)
- *
- * @return
- *     - ESP_FAIL Parameter error
- *     - ESP_OK   Success
- */
 esp_err_t ac101_set_voice_mute(bool enable);
-
-/**
- * @brief Get ES8388 DAC mute status
- *
- *  @return
- *     - ESP_FAIL Parameter error
- *     - ESP_OK   Success
- */
 esp_err_t ac101_get_voice_mute(void);
-
-/**
- * @brief Set ES8388 mic gain
- *
- * @param gain db of mic gain
- *
- * @return
- *     - ESP_FAIL Parameter error
- *     - ESP_OK   Success
- */
 esp_err_t ac101_set_mic_gain(es_mic_gain_t gain);
-
-/**
- * @brief Set ES8388 adc input mode
- *
- * @param input adc input mode
- *
- * @return
- *     - ESP_FAIL Parameter error
- *     - ESP_OK   Success
- */
 esp_err_t ac101_config_adc_input(es_adc_input_t input);
-
-/**
- * @brief Set ES8388 dac output mode
- *
- * @param output dac output mode
- *
- * @return
- *     - ESP_FAIL Parameter error
- *     - ESP_OK   Success
- */
 esp_err_t ac101_config_dac_output(es_dac_output_t output);
-
-/**
- * @brief Write ES8388 register
- *
- * @param reg_add address of register
- * @param data data of register
- *
- * @return
- *     - ESP_FAIL Parameter error
- *     - ESP_OK   Success
- */
-esp_err_t ac101_write_reg(uint8_t reg_add, uint8_t data);
-
-/**
- * @brief Print all ES8388 registers
- *
- * @return
- *     - void
- */
+static esp_err_t ac101_write_reg(uint8_t slave_add, uint8_t reg_add, uint16_t data);
 void ac101_read_all();
-
-/**
- * @brief Configure ES8388 codec mode and I2S interface
- *
- * @param mode codec mode
- * @param iface I2S config
- *
- * @return
- *     - ESP_FAIL Parameter error
- *     - ESP_OK   Success
- */
 esp_err_t ac101_config_i2s(audio_hal_codec_mode_t mode, audio_hal_codec_i2s_iface_t *iface);
-
-/**
- * @brief Control ES8388 codec chip
- *
- * @param mode codec mode
- * @param ctrl_state start or stop decode or encode progress
- *
- * @return
- *     - ESP_FAIL Parameter error
- *     - ESP_OK   Success
- */
 esp_err_t ac101_ctrl_state(audio_hal_codec_mode_t mode, audio_hal_ctrl_t ctrl_state);
-
-/**
- * @brief Set ES8388 PA power
- *
- * @param enable true for enable PA power, false for disable PA power
- *
- * @return
- *      - void
- */
 void ac101_pa_power(bool enable);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif //__ES8388_H__
+#endif //__AC101_H__

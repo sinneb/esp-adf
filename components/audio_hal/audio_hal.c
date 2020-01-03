@@ -61,11 +61,8 @@ audio_hal_handle_t audio_hal_init(audio_hal_codec_config_t *audio_hal_conf, audi
             return NULL;
         }
     }
-    printf("hier\n");
     ret |= audio_hal->audio_codec_config_iface(audio_hal_conf->codec_mode, &audio_hal_conf->i2s_iface);
-    printf("tussen\n");
     ret |= audio_hal->audio_codec_set_volume(AUDIO_HAL_VOL_DEFAULT);
-    printf("daar\n");
     audio_hal->handle = audio_hal;
     audio_hal_func->handle = audio_hal;
     mutex_unlock(audio_hal->audio_hal_lock);

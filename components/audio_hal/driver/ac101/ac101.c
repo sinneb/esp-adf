@@ -29,10 +29,6 @@
 #include "board_pins_config.h"
 #include "audio_hal.h"
 
-// #ifdef CONFIG_ESP_LYRAT_V4_3_BOARD
-// #include "headphone_detect.h"
-// #endif
-
 static const char *AC101_TAG = "AC101_DRIVER";
 
 #define ES_ASSERT(a, format, b, ...) \
@@ -41,7 +37,7 @@ static const char *AC101_TAG = "AC101_DRIVER";
         return b;\
     }
 
-static i2c_config_t es_i2c_cfg = {
+static i2c_config_t ac101_i2c_cfg = {
     .mode = I2C_MODE_MASTER,
     .sda_pullup_en = GPIO_PULLUP_ENABLE,
     .scl_pullup_en = GPIO_PULLUP_ENABLE,
@@ -58,19 +54,10 @@ audio_hal_func_t AUDIO_CODEC_AC101_DEFAULT_HANDLE = {
     .audio_codec_get_volume = ac101_get_voice_volume,
 };
 
-static esp_err_t es_write_reg(uint8_t slave_add, uint8_t reg_add, uint16_t data)
+static esp_err_t ac101_write_reg(uint8_t slave_add, uint8_t reg_add, uint16_t data)
 {
     esp_err_t res = ESP_OK;
-    // i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    // res |= i2c_master_start(cmd);
-    // res |= i2c_master_write_byte(cmd, slave_add, 1 /*ACK_CHECK_EN*/);
-    // res |= i2c_master_write_byte(cmd, reg_add, 1 /*ACK_CHECK_EN*/);
-    // res |= i2c_master_write_byte(cmd, data, 1 /*ACK_CHECK_EN*/);
-    // res |= i2c_master_stop(cmd);
-    // res |= i2c_master_cmd_begin(0, cmd, 1000 / portTICK_RATE_MS);
-    // i2c_cmd_link_delete(cmd);
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    //esp_err_t ret =0;
     uint8_t send_buff[4];
     send_buff[0] = (AC101_ADDR << 1);
     send_buff[1] = reg_add;
@@ -81,51 +68,26 @@ static esp_err_t es_write_reg(uint8_t slave_add, uint8_t reg_add, uint16_t data)
     res |= i2c_master_stop(cmd);
     res |= i2c_master_cmd_begin(0, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
-    //return ret;
-    ES_ASSERT(res, "es_write_reg error", -1);
+    ES_ASSERT(res, "ac101_write_reg error", -1);
     return res;
 }
 
-static esp_err_t es_read_reg(uint8_t reg_add, uint8_t *pData)
+static esp_err_t ac101_read_reg(uint8_t reg_add, uint8_t *pData)
 {
-  uint16_t val = 0;
-  uint8_t data_rd[2];
-  i2c_example_master_read_slave(AC101_ADDR,reg_add, data_rd, 2);
-  val=(data_rd[0]<<8)+data_rd[1];
-  return val;
-    // uint8_t data;
-    // esp_err_t res = ESP_OK;
-    // i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    //
-    // res |= i2c_master_start(cmd);
-    // res |= i2c_master_write_byte(cmd, AC101_ADDR, 1 /*ACK_CHECK_EN*/);
-    // res |= i2c_master_write_byte(cmd, reg_add, 1 /*ACK_CHECK_EN*/);
-    // res |= i2c_master_stop(cmd);
-    // res |= i2c_master_cmd_begin(0, cmd, 1000 / portTICK_RATE_MS);
-    // i2c_cmd_link_delete(cmd);
-    //
-    // cmd = i2c_cmd_link_create();
-    // res |= i2c_master_start(cmd);
-    // res |= i2c_master_write_byte(cmd, AC101_ADDR | 0x01, 1 /*ACK_CHECK_EN*/);
-    // res |= i2c_master_read_byte(cmd, &data, 0x01/*NACK_VAL*/);
-    // res |= i2c_master_stop(cmd);
-    // res |= i2c_master_cmd_begin(0, cmd, 1000 / portTICK_RATE_MS);
-    // i2c_cmd_link_delete(cmd);
-    //
-    // ES_ASSERT(res, "es_read_reg error", -1);
-    // *pData = data;
-    // return res;
+    uint16_t val = 0;
+    uint8_t data_rd[2];
+    i2c_example_master_read_slave(AC101_ADDR,reg_add, data_rd, 2);
+    val=(data_rd[0]<<8)+data_rd[1];
+    return val;
 }
 
 static int i2c_init()
 {
-  printf("Start I2C config\n");
     int res;
-    get_i2c_pins(I2C_NUM_0, &es_i2c_cfg);
-    res = i2c_param_config(I2C_NUM_0, &es_i2c_cfg);
-    res |= i2c_driver_install(I2C_NUM_0, es_i2c_cfg.mode, 0, 0, 0);
+    get_i2c_pins(I2C_NUM_0, &ac101_i2c_cfg);
+    res = i2c_param_config(I2C_NUM_0, &ac101_i2c_cfg);
+    res |= i2c_driver_install(I2C_NUM_0, ac101_i2c_cfg.mode, 0, 0, 0);
     ES_ASSERT(res, "i2c_init error", -1);
-  printf("End I2C config\n");
     return res;
 }
 
@@ -133,27 +95,11 @@ void ac101_read_all()
 {
     for (int i = 0; i < 50; i++) {
         uint8_t reg = 0;
-        es_read_reg(i, &reg);
+        ac101_read_reg(i, &reg);
         ets_printf("%x: %x\n", i, reg);
     }
 }
 
-esp_err_t ac101_write_reg(uint8_t reg_add, uint8_t data)
-{
-    return es_write_reg(AC101_ADDR, reg_add, data);
-}
-
-/**
- * @brief Configure ES8388 ADC and DAC volume. Basicly you can consider this as ADC and DAC gain
- *
- * @param mode:             set ADC or DAC or all
- * @param volume:           -96 ~ 0              for example Es8388SetAdcDacVolume(ES_MODULE_ADC, 30, 6); means set ADC volume -30.5db
- * @param dot:              whether include 0.5. for example Es8388SetAdcDacVolume(ES_MODULE_ADC, 30, 4); means set ADC volume -30db
- *
- * @return
- *     - (-1) Parameter error
- *     - (0)   Success
- */
 static int ac101_set_adc_dac_volume(int mode, int volume, int dot)
 {
     int res = 0;
@@ -166,360 +112,178 @@ static int ac101_set_adc_dac_volume(int mode, int volume, int dot)
     }
     dot = (dot >= 5 ? 1 : 0);
     volume = (-volume << 1) + dot;
-    if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC) {
-        res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL8, volume);
-        res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL9, volume);  //ADC Right Volume=0db
+    if (mode == AC101_MODULE_ADC || mode == AC101_MODULE_ADC_DAC) {
+        res |= ac101_write_reg(AC101_ADDR, ADC_VOL_CTRL, volume);
     }
-    if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC) {
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL5, volume);
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL4, volume);
+    if (mode == AC101_MODULE_DAC || mode == AC101_MODULE_ADC_DAC) {
+        res |= ac101_write_reg(AC101_ADDR, DAC_VOL_CTRL, volume);
     }
     return res;
 }
 
-
-/**
- * @brief Power Management
- *
- * @param mod:      if ES_POWER_CHIP, the whole chip including ADC and DAC is enabled
- * @param enable:   false to disable true to enable
- *
- * @return
- *     - (-1)  Error
- *     - (0)   Success
- */
-esp_err_t ac101_start(es_module_t mode)
+esp_err_t ac101_start(ac101_module_t mode)
 {
-  // printf("AC101 START");
-  //   esp_err_t res = ESP_OK;
-  //   uint8_t prev_data = 0, data = 0;
-  //   es_read_reg(ES8388_DACCONTROL21, &prev_data);
-  //   if (mode == ES_MODULE_LINE) {
-  //       res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL16, 0x09); // 0x00 audio on LIN1&RIN1,  0x09 LIN2&RIN2 by pass enable
-  //       res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL17, 0x50); // left DAC to left mixer enable  and  LIN signal to left mixer enable 0db  : bupass enable
-  //       res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL20, 0x50); // right DAC to right mixer enable  and  LIN signal to right mixer enable 0db : bupass enable
-  //       res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL21, 0xC0); //enable adc
-  //   } else {
-  //       res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL21, 0x80);   //enable dac
-  //   }
-  //   es_read_reg(ES8388_DACCONTROL21, &data);
-  //   if (prev_data != data) {
-  //       res |= es_write_reg(AC101_ADDR, ES8388_CHIPPOWER, 0xF0);   //start state machine
-  //       // res |= es_write_reg(AC101_ADDR, ES8388_CONTROL1, 0x16);
-  //       // res |= es_write_reg(AC101_ADDR, ES8388_CONTROL2, 0x50);
-  //       res |= es_write_reg(AC101_ADDR, ES8388_CHIPPOWER, 0x00);   //start state machine
-  //   }
-  //   if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC || mode == ES_MODULE_LINE) {
-  //       res |= es_write_reg(AC101_ADDR, ES8388_ADCPOWER, 0x00);   //power up adc and line in
-  //   }
-  //   if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC || mode == ES_MODULE_LINE) {
-  //       res |= es_write_reg(AC101_ADDR, ES8388_DACPOWER, 0x3c);   //power up dac and line out
-  //       res |= ac101_set_voice_mute(false);
-  //       ESP_LOGD(AC101_TAG, "es8388_start default is mode:%d", mode);
-  //   }
-  //
-  //   return res;
-
-  esp_err_t res = 0;
-  if (mode == ES_MODULE_LINE) {
-  res |= es_write_reg(AC101_ADDR, 0x51, 0x0408);
-  res |= es_write_reg(AC101_ADDR, 0x40, 0x8000);
-  res |= es_write_reg(AC101_ADDR, 0x50, 0x3bc0);
-  }
-  if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC || mode == ES_MODULE_LINE) {
-  //I2S1_SDOUT_CTRL
-  //res |= AC101_Write_Reg(PLL_CTRL2, 0x8120);
-    res |= es_write_reg(AC101_ADDR, 0x04, 0x800c);
-    res |= es_write_reg(AC101_ADDR, 0x05, 0x800c);
-  //res |= AC101_Write_Reg(0x06, 0x3000);
-  }
-  if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC || mode == ES_MODULE_LINE) {
-    //* Enable Headphoe output   注意使用耳机时，最后开以下寄存器
-  res |= es_write_reg(AC101_ADDR, OMIXER_DACA_CTRL, 0xff80);
-    res |= es_write_reg(AC101_ADDR, HPOUT_CTRL, 0xc3c1);
-    res |= es_write_reg(AC101_ADDR, HPOUT_CTRL, 0xcb00);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-  res |= es_write_reg(AC101_ADDR, HPOUT_CTRL, 0xfbc0);
-
-    //* Enable Speaker output
-  res |= es_write_reg(AC101_ADDR, SPKOUT_CTRL, 0xeabd);
-  vTaskDelay(10 / portTICK_PERIOD_MS);
-  ac101_set_voice_volume(30);
-  }
-
-  return res;
-}
-
-/**
- * @brief Power Management
- *
- * @param mod:      if ES_POWER_CHIP, the whole chip including ADC and DAC is enabled
- * @param enable:   false to disable true to enable
- *
- * @return
- *     - (-1)  Error
- *     - (0)   Success
- */
-esp_err_t ac101_stop(es_module_t mode)
-{
-    esp_err_t res = ESP_OK;
-    if (mode == ES_MODULE_LINE) {
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL21, 0x80); //enable dac
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL16, 0x00); // 0x00 audio on LIN1&RIN1,  0x09 LIN2&RIN2
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL17, 0x90); // only left DAC to left mixer enable 0db
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL20, 0x90); // only right DAC to right mixer enable 0db
-        return res;
+    esp_err_t res = 0;
+    if (mode == AC101_MODULE_LINE) {
+        res |= ac101_write_reg(AC101_ADDR, 0x51, 0x0408);
+        res |= ac101_write_reg(AC101_ADDR, 0x40, 0x8000);
+        res |= ac101_write_reg(AC101_ADDR, 0x50, 0x3bc0);
     }
-    if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC) {
-        res |= es_write_reg(AC101_ADDR, ES8388_DACPOWER, 0x00);
-        res |= ac101_set_voice_mute(true); //res |= Es8388SetAdcDacVolume(ES_MODULE_DAC, -96, 5);      // 0db
-        //res |= es_write_reg(AC101_ADDR, ES8388_DACPOWER, 0xC0);  //power down dac and line out
+    if (mode == AC101_MODULE_ADC || mode == AC101_MODULE_ADC_DAC || mode == AC101_MODULE_LINE) {
+        res |= ac101_write_reg(AC101_ADDR, 0x04, 0x800c);
+        res |= ac101_write_reg(AC101_ADDR, 0x05, 0x800c);
     }
-    if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC) {
-        //res |= Es8388SetAdcDacVolume(ES_MODULE_ADC, -96, 5);      // 0db
-        res |= es_write_reg(AC101_ADDR, ES8388_ADCPOWER, 0xFF);  //power down adc and line in
+    if (mode == AC101_MODULE_DAC || mode == AC101_MODULE_ADC_DAC || mode == AC101_MODULE_LINE) {
+        //* Enable Headphone output
+        res |= ac101_write_reg(AC101_ADDR, OMIXER_DACA_CTRL, 0xff80);
+        res |= ac101_write_reg(AC101_ADDR, HPOUT_CTRL, 0xc3c1);
+        res |= ac101_write_reg(AC101_ADDR, HPOUT_CTRL, 0xcb00);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        res |= ac101_write_reg(AC101_ADDR, HPOUT_CTRL, 0xfbc0);
+        //* Enable Speaker output
+        res |= ac101_write_reg(AC101_ADDR, SPKOUT_CTRL, 0xeabd);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+        ac101_set_voice_volume(50);
     }
-    if (mode == ES_MODULE_ADC_DAC) {
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL21, 0x9C);  //disable mclk
-//        res |= es_write_reg(AC101_ADDR, ES8388_CONTROL1, 0x00);
-//        res |= es_write_reg(AC101_ADDR, ES8388_CONTROL2, 0x58);
-//        res |= es_write_reg(AC101_ADDR, ES8388_CHIPPOWER, 0xF3);  //stop state machine
-    }
-
     return res;
 }
 
-
-/**
- * @brief Config I2s clock in MSATER mode
- *
- * @param cfg.sclkDiv:      generate SCLK by dividing MCLK in MSATER mode
- * @param cfg.lclkDiv:      generate LCLK by dividing MCLK in MSATER mode
- *
- * @return
- *     - (-1)  Error
- *     - (0)   Success
- */
-esp_err_t ac101_i2s_config_clock(es_i2s_clock_t cfg)
+esp_err_t ac101_stop(ac101_module_t mode)
 {
-    esp_err_t res = ESP_OK;
-    res |= es_write_reg(AC101_ADDR, ES8388_MASTERMODE, cfg.sclk_div);
-    res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL5, cfg.lclk_div);  //ADCFsMode,singel SPEED,RATIO=256
-    res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL2, cfg.lclk_div);  //ADCFsMode,singel SPEED,RATIO=256
+    esp_err_t res = 0;
+    res |= ac101_write_reg(AC101_ADDR, HPOUT_CTRL, 0x01);			//disable earphone
+    res |= ac101_write_reg(AC101_ADDR, SPKOUT_CTRL, 0xe880);		//disable speaker
     return res;
+}
+
+esp_err_t ac101_i2s_config_clock(ac101_i2s_clock_t cfg)
+{
+    esp_err_t res = 0;
+  	uint16_t regval=0;
+    uint8_t reg = 0;
+  	regval = ac101_read_reg(I2S1LCK_CTRL, &reg);
+  	regval &= 0xe03f;
+  	regval |= (cfg.bclk_div << 9);
+  	regval |= (cfg.lclk_div << 6);
+  	res = ac101_write_reg(AC101_ADDR, I2S1LCK_CTRL, regval);
+  	return res;
 }
 
 esp_err_t ac101_deinit(void)
 {
-    int res = 0;
-    res = es_write_reg(AC101_ADDR, ES8388_CHIPPOWER, 0xFF);  //reset and stop es8388
-    i2c_driver_delete(I2C_NUM_0);
-#ifdef CONFIG_ESP_LYRAT_V4_3_BOARD
-    headphone_detect_deinit();
-#endif
-
-    return res;
+  	return ac101_write_reg(AC101_ADDR, CHIP_AUDIO_RS, 0x123);		//soft reset
 }
 
-/**
- * @return
- *     - (-1)  Error
- *     - (0)   Success
- */
 esp_err_t ac101_init(audio_hal_codec_config_t *cfg)
 {
-  printf("in ac101 init, init\n");
-  ESP_LOGW(AC101_TAG, "Warning: volume < -96! or > 0!\n");
-  int res = 0;
+    int res = 0;
+    res = i2c_init();
+    if (ESP_OK != res) {
+      ESP_LOGE(AC101_TAG, "i2c init failed!");
+      return res;
+    } else {
+      ESP_LOGI(AC101_TAG, "i2c init ok");
+    }
 
-  res = i2c_init(); // ESP32 in master mode
+    res = ac101_write_reg(AC101_ADDR, CHIP_AUDIO_RS, 0x123);
+  	vTaskDelay(1000 / portTICK_PERIOD_MS);
+  	if (ESP_OK != res) {
+  		ESP_LOGE(AC101_TAG, "reset failed!");
+  		return res;
+  	} else {
+  		ESP_LOGI(AC101_TAG, "reset ok");
+  	}
 
-  res = es_write_reg(AC101_ADDR, CHIP_AUDIO_RS, 0x123);
-	vTaskDelay(1000 / portTICK_PERIOD_MS);
-	if (ESP_OK != res) {
-		ESP_LOGE(AC101_TAG, "reset failed!");
-		return res;
-	} else {
-		ESP_LOGW(AC101_TAG, "reset succeed");
-	}
+    res |= ac101_write_reg(AC101_ADDR, SPKOUT_CTRL, 0xe880);
 
-  res |= es_write_reg(AC101_ADDR, SPKOUT_CTRL, 0xe880);
+  	//Enable the PLL from 256*44.1KHz MCLK source
+  	res |= ac101_write_reg(AC101_ADDR, PLL_CTRL1, 0x014f);
+  	//res |= ac101_write_reg(PLL_CTRL2, 0x83c0);
+  	res |= ac101_write_reg(AC101_ADDR, PLL_CTRL2, 0x8600);
 
-	//Enable the PLL from 256*44.1KHz MCLK source
-	res |= es_write_reg(AC101_ADDR, PLL_CTRL1, 0x014f);
-	//res |= es_write_reg(PLL_CTRL2, 0x83c0);
-	res |= es_write_reg(AC101_ADDR, PLL_CTRL2, 0x8600);
+  	//Clocking system
+  	res |= ac101_write_reg(AC101_ADDR, SYSCLK_CTRL, 0x8b08);
+  	res |= ac101_write_reg(AC101_ADDR, MOD_CLK_ENA, 0x800c);
+  	res |= ac101_write_reg(AC101_ADDR, MOD_RST_CTRL, 0x800c);
+  	res |= ac101_write_reg(AC101_ADDR, I2S_SR_CTRL, 0x7000);			//sample rate
+  	//AIF config
+  	res |= ac101_write_reg(AC101_ADDR, I2S1LCK_CTRL, 0x8850);			//BCLK/LRCK
+  	res |= ac101_write_reg(AC101_ADDR, I2S1_SDOUT_CTRL, 0xc000);		//
+  	res |= ac101_write_reg(AC101_ADDR, I2S1_SDIN_CTRL, 0xc000);
+  	res |= ac101_write_reg(AC101_ADDR, I2S1_MXR_SRC, 0x2200);			//
 
-	//Clocking system
-	res |= es_write_reg(AC101_ADDR, SYSCLK_CTRL, 0x8b08);
-	res |= es_write_reg(AC101_ADDR, MOD_CLK_ENA, 0x800c);
-	res |= es_write_reg(AC101_ADDR, MOD_RST_CTRL, 0x800c);
-	res |= es_write_reg(AC101_ADDR, I2S_SR_CTRL, 0x7000);			//sample rate
-	//AIF config
-	res |= es_write_reg(AC101_ADDR, I2S1LCK_CTRL, 0x8850);			//BCLK/LRCK
-	res |= es_write_reg(AC101_ADDR, I2S1_SDOUT_CTRL, 0xc000);		//
-	res |= es_write_reg(AC101_ADDR, I2S1_SDIN_CTRL, 0xc000);
-	res |= es_write_reg(AC101_ADDR, I2S1_MXR_SRC, 0x2200);			//
+  	res |= ac101_write_reg(AC101_ADDR, ADC_SRCBST_CTRL, 0xccc4);
+  	res |= ac101_write_reg(AC101_ADDR, ADC_SRC, 0x2020);
+  	res |= ac101_write_reg(AC101_ADDR, ADC_DIG_CTRL, 0x8000);
+  	res |= ac101_write_reg(AC101_ADDR, ADC_APC_CTRL, 0xbbc3);
 
-	res |= es_write_reg(AC101_ADDR, ADC_SRCBST_CTRL, 0xccc4);
-	res |= es_write_reg(AC101_ADDR, ADC_SRC, 0x2020);
-	res |= es_write_reg(AC101_ADDR, ADC_DIG_CTRL, 0x8000);
-	res |= es_write_reg(AC101_ADDR, ADC_APC_CTRL, 0xbbc3);
+  	//Path Configuration
+  	res |= ac101_write_reg(AC101_ADDR, DAC_MXR_SRC, 0xcc00);
+  	res |= ac101_write_reg(AC101_ADDR, DAC_DIG_CTRL, 0x8000);
+  	res |= ac101_write_reg(AC101_ADDR, OMIXER_SR, 0x0081);
+  	res |= ac101_write_reg(AC101_ADDR, OMIXER_DACA_CTRL, 0xf080);//}
 
-	//Path Configuration
-	res |= es_write_reg(AC101_ADDR, DAC_MXR_SRC, 0xcc00);
-	res |= es_write_reg(AC101_ADDR, DAC_DIG_CTRL, 0x8000);
-	res |= es_write_reg(AC101_ADDR, OMIXER_SR, 0x0081);
-	res |= es_write_reg(AC101_ADDR, OMIXER_DACA_CTRL, 0xf080);//}
+  		//* Enable Speaker output
+  	res |= ac101_write_reg(AC101_ADDR, 0x58, 0xeabd);
 
-		//* Enable Speaker output
-	res |= es_write_reg(AC101_ADDR, 0x58, 0xeabd);
+    ac101_pa_power(true);
 
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    if (ESP_OK != res) {
+      ESP_LOGE(AC101_TAG, "init failed!");
+      return res;
+    } else {
+      ESP_LOGI(AC101_TAG, "init ok");
+    }
 
-  ESP_LOGW(AC101_TAG, "init done");
-  ac101_pa_power(true);
-
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
-  if (ESP_OK != res) {
-    ESP_LOGE(AC101_TAG, "init failed!");
-    return res;
-  } else {
-    ESP_LOGW(AC101_TAG, "init succeed");
-  }
-
-    //res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL3, 0x04);  // 0x04 mute/0x00 unmute&ramp;DAC unmute and  disabled digital volume control soft ramp
-//     /* Chip Control and Power Management */
-//     res |= es_write_reg(AC101_ADDR, ES8388_CONTROL2, 0x50);
-//     res |= es_write_reg(AC101_ADDR, ES8388_CHIPPOWER, 0x00); //normal all and power up all
-//     res |= es_write_reg(AC101_ADDR, ES8388_MASTERMODE, cfg->i2s_iface.mode); //CODEC IN I2S SLAVE MODE
-//
-//     /* dac */
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACPOWER, 0xC0);  //disable DAC and disable Lout/Rout/1/2
-//     res |= es_write_reg(AC101_ADDR, ES8388_CONTROL1, 0x12);  //Enfr=0,Play&Record Mode,(0x17-both of mic&paly)
-// //    res |= es_write_reg(AC101_ADDR, ES8388_CONTROL2, 0);  //LPVrefBuf=0,Pdn_ana=0
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL1, 0x18);//1a 0x18:16bit iis , 0x00:24
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL2, 0x02);  //DACFsMode,SINGLE SPEED; DACFsRatio,256
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL16, 0x00); // 0x00 audio on LIN1&RIN1,  0x09 LIN2&RIN2
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL17, 0x90); // only left DAC to left mixer enable 0db
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL20, 0x90); // only right DAC to right mixer enable 0db
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL21, 0x80); //set internal ADC and DAC use the same LRCK clock, ADC LRCK as internal LRCK
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL23, 0x00);   //vroi=0
-//     res |= ac101_set_adc_dac_volume(ES_MODULE_DAC, 0, 0);          // 0db
-//     int tmp = 0;
-//     if (AUDIO_HAL_DAC_OUTPUT_LINE2 == cfg->dac_output) {
-//         tmp = DAC_OUTPUT_LOUT1 | DAC_OUTPUT_ROUT1;
-//     } else if (AUDIO_HAL_DAC_OUTPUT_LINE1 == cfg->dac_output) {
-//         tmp = DAC_OUTPUT_LOUT2 | DAC_OUTPUT_ROUT2;
-//     } else {
-//         tmp = DAC_OUTPUT_LOUT1 | DAC_OUTPUT_LOUT2 | DAC_OUTPUT_ROUT1 | DAC_OUTPUT_ROUT2;
-//     }
-//     res |= es_write_reg(AC101_ADDR, ES8388_DACPOWER, tmp);  //0x3c Enable DAC and Enable Lout/Rout/1/2
-//     /* adc */
-//     res |= es_write_reg(AC101_ADDR, ES8388_ADCPOWER, 0xFF);
-//     res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL1, 0xbb); // MIC Left and Right channel PGA gain
-//     tmp = 0;
-//     if (AUDIO_HAL_ADC_INPUT_LINE1 == cfg->adc_input) {
-//         tmp = ADC_INPUT_LINPUT1_RINPUT1;
-//     } else if (AUDIO_HAL_ADC_INPUT_LINE2 == cfg->adc_input) {
-//         tmp = ADC_INPUT_LINPUT2_RINPUT2;
-//     } else {
-//         tmp = ADC_INPUT_DIFFERENCE;
-//     }
-//     res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL2, tmp);  //0x00 LINSEL & RINSEL, LIN1/RIN1 as ADC Input; DSSEL,use one DS Reg11; DSR, LINPUT1-RINPUT1
-//     res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL3, 0x02);
-//     res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL4, 0x0d); // Left/Right data, Left/Right justified mode, Bits length, I2S format
-//     res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL5, 0x02);  //ADCFsMode,singel SPEED,RATIO=256
-//     //ALC for Microphone
-//     res |= ac101_set_adc_dac_volume(ES_MODULE_ADC, 0, 0);      // 0db
-//     res |= es_write_reg(AC101_ADDR, ES8388_ADCPOWER, 0x09); //Power on ADC, Enable LIN&RIN, Power off MICBIAS, set int1lp to low power mode
-//     /* enable es8388 PA */
-//     ac101_pa_power(true);
-//     ESP_LOGI(AC101_TAG, "init,out:%02x, in:%02x", cfg->dac_output, cfg->adc_input);
-    printf("End AC101 init, init\n");
     return res;
 }
 
-/**
- * @brief Configure ES8388 I2S format
- *
- * @param mode:           set ADC or DAC or all
- * @param bitPerSample:   see Es8388I2sFmt
- *
- * @return
- *     - (-1) Error
- *     - (0)  Success
- */
-esp_err_t ac101_config_fmt(es_module_t mode, es_i2s_fmt_t fmt)
+esp_err_t ac101_config_fmt(ac101_module_t mode, es_i2s_fmt_t fmt)
 {
     esp_err_t res = ESP_OK;
     uint8_t reg = 0;
-    if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC) {
-        res = es_read_reg(ES8388_ADCCONTROL4, &reg);
+    if (mode == AC101_MODULE_ADC || mode == AC101_MODULE_ADC_DAC) {
+        res = ac101_read_reg(ES8388_ADCCONTROL4, &reg);
         reg = reg & 0xfc;
-        res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL4, reg | fmt);
+        res |= ac101_write_reg(AC101_ADDR, ES8388_ADCCONTROL4, reg | fmt);
     }
-    if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC) {
-        res = es_read_reg(ES8388_DACCONTROL1, &reg);
+    if (mode == AC101_MODULE_DAC || mode == AC101_MODULE_ADC_DAC) {
+        res = ac101_read_reg(ES8388_DACCONTROL1, &reg);
         reg = reg & 0xf9;
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL1, reg | (fmt << 1));
+        res |= ac101_write_reg(AC101_ADDR, ES8388_DACCONTROL1, reg | (fmt << 1));
     }
     return res;
 }
 
-/**
- * @param volume: 0 ~ 100
- *
- * @return
- *     - (-1)  Error
- *     - (0)   Success
- */
 esp_err_t ac101_set_voice_volume(int volume)
 {
-  // headphones
-  uint16_t res,tmp;
-  esp_err_t ret;
-  uint8_t reg = 0;
-  res = es_read_reg(HPOUT_CTRL,&reg);
-  tmp = ~(0x3f<<4);
-  res &= tmp;
-  volume &= 0x3f;
-  res |= (volume << 4);
-  ret = es_write_reg(AC101_ADDR, HPOUT_CTRL,res);
+    // headphones
+    uint16_t res,tmp;
+    esp_err_t ret;
+    uint8_t reg = 0;
+    res = ac101_read_reg(HPOUT_CTRL,&reg);
+    tmp = ~(0x3f<<4);
+    res &= tmp;
+    volume &= 0x3f;
+    res |= (volume << 4);
+    ret = ac101_write_reg(AC101_ADDR, HPOUT_CTRL,res);
 
-  // speaker
-  //uint16_t res;
-  //esp_err_t ret;
-  volume = volume/2;
-  res = es_read_reg(SPKOUT_CTRL,&reg);
-  res &= (~0x1f);
-  volume &= 0x1f;
-  res |= volume;
-  ret = es_write_reg(AC101_ADDR, SPKOUT_CTRL,res);
-  return ret;
-  //return ret;
-    // esp_err_t res = ESP_OK;
-    // if (volume < 0)
-    //     volume = 0;
-    // else if (volume > 100)
-    //     volume = 100;
-    // volume /= 3;
-    // res = es_write_reg(AC101_ADDR, ES8388_DACCONTROL24, volume);
-    // res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL25, volume);
-    // res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL26, 0);
-    // res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL27, 0);
-    // return res;
+    // speaker
+    volume = volume/2;
+    res = ac101_read_reg(SPKOUT_CTRL,&reg);
+    res &= (~0x1f);
+    volume &= 0x1f;
+    res |= volume;
+    ret = ac101_write_reg(AC101_ADDR, SPKOUT_CTRL,res);
+    return ret;
 }
 
-/**
- *
- * @return
- *           volume
- */
 esp_err_t ac101_get_voice_volume(int *volume)
 {
     esp_err_t res = ESP_OK;
     uint8_t reg = 0;
-    res = es_read_reg(ES8388_DACCONTROL24, &reg);
+    res = ac101_read_reg(ES8388_DACCONTROL24, &reg);
     if (res == ESP_FAIL) {
         *volume = 0;
     } else {
@@ -531,51 +295,32 @@ esp_err_t ac101_get_voice_volume(int *volume)
     return res;
 }
 
-/**
- * @brief Configure ES8388 data sample bits
- *
- * @param mode:             set ADC or DAC or all
- * @param bitPerSample:   see BitsLength
- *
- * @return
- *     - (-1) Parameter error
- *     - (0)   Success
- */
-esp_err_t ac101_set_bits_per_sample(es_module_t mode, es_bits_length_t bits_length)
+esp_err_t ac101_set_bits_per_sample(ac101_module_t mode, es_bits_length_t bits_length)
 {
     esp_err_t res = ESP_OK;
     uint8_t reg = 0;
     int bits = (int)bits_length;
 
-    if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC) {
-        res = es_read_reg(ES8388_ADCCONTROL4, &reg);
+    if (mode == AC101_MODULE_ADC || mode == AC101_MODULE_ADC_DAC) {
+        res = ac101_read_reg(ES8388_ADCCONTROL4, &reg);
         reg = reg & 0xe3;
-        res |=  es_write_reg(AC101_ADDR, ES8388_ADCCONTROL4, reg | (bits << 2));
+        res |=  ac101_write_reg(AC101_ADDR, ES8388_ADCCONTROL4, reg | (bits << 2));
     }
-    if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC) {
-        res = es_read_reg(ES8388_DACCONTROL1, &reg);
+    if (mode == AC101_MODULE_DAC || mode == AC101_MODULE_ADC_DAC) {
+        res = ac101_read_reg(ES8388_DACCONTROL1, &reg);
         reg = reg & 0xc7;
-        res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL1, reg | (bits << 3));
+        res |= ac101_write_reg(AC101_ADDR, ES8388_DACCONTROL1, reg | (bits << 3));
     }
     return res;
 }
 
-/**
- * @brief Configure ES8388 DAC mute or not. Basically you can use this function to mute the output or unmute
- *
- * @param enable: enable or disable
- *
- * @return
- *     - (-1) Parameter error
- *     - (0)   Success
- */
 esp_err_t ac101_set_voice_mute(bool enable)
 {
     esp_err_t res = ESP_OK;
     uint8_t reg = 0;
-    res = es_read_reg(ES8388_DACCONTROL3, &reg);
+    res = ac101_read_reg(ES8388_DACCONTROL3, &reg);
     reg = reg & 0xFB;
-    res |= es_write_reg(AC101_ADDR, ES8388_DACCONTROL3, reg | (((int)enable) << 2));
+    res |= ac101_write_reg(AC101_ADDR, ES8388_DACCONTROL3, reg | (((int)enable) << 2));
     return res;
 }
 
@@ -583,59 +328,38 @@ esp_err_t ac101_get_voice_mute(void)
 {
     esp_err_t res = ESP_OK;
     uint8_t reg = 0;
-    res = es_read_reg(ES8388_DACCONTROL3, &reg);
+    res = ac101_read_reg(ES8388_DACCONTROL3, &reg);
     if (res == ESP_OK) {
         reg = (reg & 0x04) >> 2;
     }
     return res == ESP_OK ? reg : res;
 }
 
-/**
- * @param gain: Config DAC Output
- *
- * @return
- *     - (-1) Parameter error
- *     - (0)   Success
- */
 esp_err_t ac101_config_dac_output(int output)
 {
     esp_err_t res;
     uint8_t reg = 0;
-    res = es_read_reg(ES8388_DACPOWER, &reg);
+    res = ac101_read_reg(ES8388_DACPOWER, &reg);
     reg = reg & 0xc3;
-    res |= es_write_reg(AC101_ADDR, ES8388_DACPOWER, reg | output);
+    res |= ac101_write_reg(AC101_ADDR, ES8388_DACPOWER, reg | output);
     return res;
 }
 
-/**
- * @param gain: Config ADC input
- *
- * @return
- *     - (-1) Parameter error
- *     - (0)   Success
- */
 esp_err_t ac101_config_adc_input(es_adc_input_t input)
 {
     esp_err_t res;
     uint8_t reg = 0;
-    res = es_read_reg(ES8388_ADCCONTROL2, &reg);
+    res = ac101_read_reg(ES8388_ADCCONTROL2, &reg);
     reg = reg & 0x0f;
-    res |= es_write_reg(AC101_ADDR, ES8388_ADCCONTROL2, reg | input);
+    res |= ac101_write_reg(AC101_ADDR, ES8388_ADCCONTROL2, reg | input);
     return res;
 }
 
-/**
- * @param gain: see es_mic_gain_t
- *
- * @return
- *     - (-1) Parameter error
- *     - (0)   Success
- */
 esp_err_t ac101_set_mic_gain(es_mic_gain_t gain)
 {
     esp_err_t res, gain_n;
     gain_n = (int)gain / 3;
-    res = es_write_reg(AC101_ADDR, ES8388_ADCCONTROL1, gain_n); //MIC PGA
+    res = ac101_write_reg(AC101_ADDR, ES8388_ADCCONTROL1, gain_n); //MIC PGA
     return res;
 }
 
@@ -645,19 +369,19 @@ int ac101_ctrl_state(audio_hal_codec_mode_t mode, audio_hal_ctrl_t ctrl_state)
     int es_mode_t = 0;
     switch (mode) {
         case AUDIO_HAL_CODEC_MODE_ENCODE:
-            es_mode_t  = ES_MODULE_ADC;
+            es_mode_t  = AC101_MODULE_ADC;
             break;
         case AUDIO_HAL_CODEC_MODE_LINE_IN:
-            es_mode_t  = ES_MODULE_LINE;
+            es_mode_t  = AC101_MODULE_LINE;
             break;
         case AUDIO_HAL_CODEC_MODE_DECODE:
-            es_mode_t  = ES_MODULE_DAC;
+            es_mode_t  = AC101_MODULE_DAC;
             break;
         case AUDIO_HAL_CODEC_MODE_BOTH:
-            es_mode_t  = ES_MODULE_ADC_DAC;
+            es_mode_t  = AC101_MODULE_ADC_DAC;
             break;
         default:
-            es_mode_t = ES_MODULE_DAC;
+            es_mode_t = AC101_MODULE_DAC;
             ESP_LOGW(AC101_TAG, "Codec mode not support, default is decode mode");
             break;
     }
@@ -690,21 +414,7 @@ static esp_err_t i2c_example_master_read_slave(uint8_t DevAddr, uint8_t reg,uint
 
 esp_err_t ac101_config_i2s(audio_hal_codec_mode_t mode, audio_hal_codec_i2s_iface_t *iface)
 {
-    printf("config ac101_config_i2s\n");
     esp_err_t res = ESP_OK;
-
-    // int tmp = 0;
-    // res |= ac101_config_fmt(ES_MODULE_ADC_DAC, iface->fmt);
-    // if (iface->bits == AUDIO_HAL_BIT_LENGTH_16BITS) {
-    //     tmp = BIT_LENGTH_16BITS;
-    // } else if (iface->bits == AUDIO_HAL_BIT_LENGTH_24BITS) {
-    //     tmp = BIT_LENGTH_24BITS;
-    // } else {
-    //     tmp = BIT_LENGTH_32BITS;
-    // }
-    // res |= ac101_set_bits_per_sample(ES_MODULE_ADC_DAC, tmp);
-    // return res;
-    //esp_err_t res = 0;
     int bits = 0;
     int fmat = 0;
     int sample = 0;
@@ -779,19 +489,19 @@ esp_err_t ac101_config_i2s(audio_hal_codec_mode_t mode, audio_hal_codec_i2s_ifac
       sample = SIMPLE_RATE_44100;
     }
     uint8_t reg = 0;
-    regval = es_read_reg(I2S1LCK_CTRL, &reg);
+    regval = ac101_read_reg(I2S1LCK_CTRL, &reg);
     regval &= 0xffc3;
     regval |= (iface->mode << 15);
     regval |= (bits << 4);
     regval |= (fmat << 2);
-    res |= es_write_reg(AC101_ADDR, I2S1LCK_CTRL, regval);
-    res |= es_write_reg(AC101_ADDR, I2S_SR_CTRL, sample);
+    res |= ac101_write_reg(AC101_ADDR, I2S1LCK_CTRL, regval);
+    res |= ac101_write_reg(AC101_ADDR, I2S_SR_CTRL, sample);
 
     if (ESP_OK != res) {
       ESP_LOGE(AC101_TAG, "i2s init failed!");
       return res;
     } else {
-      ESP_LOGW(AC101_TAG, "i2s init succes");
+      ESP_LOGI(AC101_TAG, "i2s init succes");
     }
 
     return res;
