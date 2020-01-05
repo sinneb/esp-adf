@@ -46,3 +46,4 @@ coverage.info
 coverage_report/
 
 .vscode
+examples/get-started/play_raw/main/tuurs.wav

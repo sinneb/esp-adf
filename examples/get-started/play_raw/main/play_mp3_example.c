@@ -113,6 +113,10 @@ void app_main(void)
 
     int offset=8;
     while (1) {
+      // sounds2.h contains an 11khz, 16 bit wavefile
+      // samples are interleaved and in signed short format
+      // read per byte, so two reads for left channel followed by two
+      // reads for the right channel
       if(rb_bytes_available(ringbuf)>1023 && offset<54) {
 
         printf("ringbuf: %i\n",rb_bytes_available(ringbuf));

@@ -4,5 +4,5 @@ cmake_minimum_required(VERSION 3.5)
 
 include($ENV{ADF_PATH}/CMakeLists.txt)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-
 project(play_mp3)
+# set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/components)
